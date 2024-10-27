@@ -44,7 +44,7 @@ scale = 3.0   # for unconditional guidance
 
 
 all_samples = list()
-
+class_images = {}
 with torch.no_grad():
     with model.ema_scope():
         uc = model.get_learned_conditioning(
@@ -69,14 +69,23 @@ with torch.no_grad():
             x_samples_ddim = torch.clamp((x_samples_ddim+1.0)/2.0,
                                          min=0.0, max=1.0)
             all_samples.append(x_samples_ddim)
+            # Convert each image to numpy and store in dictionary
+            images = []
+            for img_tensor in x_samples_ddim:
+                img_np = 255. * rearrange(img_tensor, 'c h w -> h w c').cpu().numpy()
+                images.append(img_np.astype(np.uint8))  # Convert to uint8 format
+
+            # Store all images for this class in dictionary
+            class_images[f'class_{class_label}'] = images
+            np.savez_compressed(f'./LDM_results/class_{class_label}.npz', images=images)
 
 
-# display as grid
-grid = torch.stack(all_samples, 0)
-grid = rearrange(grid, 'n b c h w -> (n b) c h w')
-grid = make_grid(grid, nrow=n_samples_per_class)
+# # display as grid
+# grid = torch.stack(all_samples, 0)
+# grid = rearrange(grid, 'n b c h w -> (n b) c h w')
+# grid = make_grid(grid, nrow=n_samples_per_class)
 
-# to image
-grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
-image = Image.fromarray(grid.astype(np.uint8))
-image.save("ldm_images.jpg")
+# # to image
+# grid = 255. * rearrange(grid, 'c h w -> h w c').cpu().numpy()
+# image = Image.fromarray(grid.astype(np.uint8))
+# image.save("ldm_images.jpg")
